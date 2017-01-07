@@ -1,27 +1,85 @@
 // vim: set sw=4 sts=4 si:
 
 #include <FastLED.h>
+#include "potmeter.h"
 
-#define NUM_LEDS 50
+#define TOTAL_LEDS 50
+#define NUM_LEDS 49
+#define STATUS_LED 49
 #define DATA_PIN 11
-#define FRAMES_PER_SECOND 60
+#define FRAMES_PER_SECOND 50
 #define BRIGHTNESS 100
-bool gReverseDirection = false;
+#define gReverseDirection false
 
-CRGB leds[ NUM_LEDS ];
+CRGB leds[ (byte) TOTAL_LEDS ];
+CRGB status[] = {
+    CRGB::Brown,	// 0 bruin
+    CRGB::Red,		// 1 rood
+    CRGB::Orange,	// 2 orange
+    CRGB::Yellow,	// 3 geel
+    CRGB::Green,	// 4 groen 
+    CRGB::Blue,		// 5 blauw
+    CRGB::Violet,   	// 6 paars
+    CRGB::White		// 7 wit
+};
 
 void setup( void ) {
+    //Serial.begin( 115200 );
     delay( 3000 );
-    FastLED.addLeds< WS2811, DATA_PIN, RGB >( leds, NUM_LEDS );
+    FastLED.addLeds< WS2811, DATA_PIN, RGB >( leds, TOTAL_LEDS );
     FastLED.setBrightness( BRIGHTNESS ); 
 }
 
 byte current_led = 0;
 byte pattern     = 0;
+byte brightness  = 0;
 
 void loop( void ) {
 
-    fire2012();
+    static unsigned long status_timer = 0;
+
+    Potmeter pot0( A0, 32 );
+    Potmeter pot1( A1, 8  );
+
+    if ( pot0.changed() ) {
+	brightness = pot0.read();
+	FastLED.setBrightness( brightness * 8 );
+	leds[ STATUS_LED ] = status[ pattern ];
+	status_timer = millis() + 5000;
+    }
+
+    if ( pot1.changed() ) {
+	pattern = pot1.read();
+	leds[ STATUS_LED ] = status[ pattern ];
+	status_timer = millis() + 5000;
+    }
+
+    if ( millis() > status_timer ) {
+	leds[ STATUS_LED ] = CRGB::Black;
+    }
+
+    switch (pattern) {
+	case 0:
+	    fire2012();
+	    break;
+	case 1:
+	    zwaailicht();
+	    break; 
+	case 2:
+	    newyear();
+	    break;
+	case 3:
+	    break;
+	case 4:
+	    break;
+	case 5:
+	    break;
+	case 6:
+	    break;
+	case 7:
+	    testpattern();
+	    break;
+    }
 
     FastLED.show();
     delay( 1000 / FRAMES_PER_SECOND );
@@ -29,67 +87,21 @@ void loop( void ) {
 
 void setcol( char col, CRGB colour ) {
     col = col % 7;
-    for( char row = 0; row < 7; row++ )
-	leds[ 7 * row + col ] = colour;
+    for( byte row = 0; row < 7; row++ )
+	leds[ 7 * row + (byte)col ] = colour;
 }
 void fadeall( byte scale ) {
-    for ( char led = 0; led < 49; led++ )
+    for ( byte led = 0; led < 49; led++ )
 	leds[ led ].fadeToBlackBy( scale );
 }
 void fadecol( char col, byte scale ) {
     col = col % 7;
-    for( char row = 0; row < 7; row++ ) 
-	leds[ 7 * row + col ].fadeToBlackBy( scale );
+    for( byte row = 0; row < 7; row++ ) 
+	leds[ 7 * row + (byte)col ].fadeToBlackBy( scale );
 }
 
-void zwaailicht( void ) {
-
-    static char col = 0;
-
-    fadeall( 150 );
-    if ( col < 7 ) {
-	setcol( col, CRGB::Red );
-    } else {
-	setcol( col, CRGB::Blue );
-    }
-
-    col++;
-    col %= 14;
-
-}
-
-#define COOLING  55
-#define SPARKING 120
-
-void fire2012() {
-// Array of temperature readings at each simulation cell
-  static byte heat[NUM_LEDS];
-
-  // Step 1.  Cool down every cell a little
-    for( int i = 0; i < NUM_LEDS; i++) {
-      heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
-    }
-  
-    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-    for( int k= NUM_LEDS - 1; k >= 2; k--) {
-      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
-    }
-    
-    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-    if( random8() < SPARKING ) {
-      int y = random8(7);
-      heat[y] = qadd8( heat[y], random8(160,255) );
-    }
-
-    // Step 4.  Map from heat cells to LED colors
-    for( int j = 0; j < NUM_LEDS; j++) {
-      CRGB color = HeatColor( heat[j]);
-      int pixelnumber;
-      if( gReverseDirection ) {
-        pixelnumber = (NUM_LEDS-1) - j;
-      } else {
-        pixelnumber = j;
-      }
-      leds[pixelnumber] = color;
+void uit( void ) {
+    for ( byte i = 0; i < NUM_LEDS; i++ ) {
+	leds[ i ] = CRGB::Black;
     }
 }
